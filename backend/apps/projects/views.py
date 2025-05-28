@@ -96,7 +96,9 @@ class ProjectViewSet(viewsets.ModelViewSet):
     def my_projects(self, request):
         """Get projects owned by the current user"""
         projects = Project.objects.filter(owner=request.user).select_related('owner')
-        serializer = ProjectListSerializer(projects, many=True, context={'request': request})
+        serializer = ProjectListSerializer(
+            projects, many=True, context={'request': request}
+        )
         return Response(serializer.data)
 
     @action(detail=False, methods=['get'])
