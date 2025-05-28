@@ -4,23 +4,44 @@ Test settings for Trello Backend
 
 from .settings import *
 
-# Database
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': ':memory:',
+"""
+Test settings for Trello Backend
+"""
+
+import os
+from .settings import *
+
+# Use PostgreSQL for CI, SQLite for local testing
+if os.environ.get('CI'):
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': os.environ.get('POSTGRES_DB', 'trello_db_test'),
+            'USER': os.environ.get('POSTGRES_USER', 'postgres'),
+            'PASSWORD': os.environ.get('POSTGRES_PASSWORD', 'postgres'),
+            'HOST': 'localhost',
+            'PORT': '5432',
+        }
     }
-}
+else:
+    # Use SQLite for local testing
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': ':memory:',
+        }
+    }
 
-# Disable migrations during tests for speed
-class DisableMigrations:
-    def __contains__(self, item):
-        return True
-    
-    def __getitem__(self, item):
-        return None
+# Disable migrations during tests for speed (only for SQLite)
+if not os.environ.get('CI'):
+    class DisableMigrations:
+        def __contains__(self, item):
+            return True
+        
+        def __getitem__(self, item):
+            return None
 
-MIGRATION_MODULES = DisableMigrations()
+    MIGRATION_MODULES = DisableMigrations()
 
 # Faster password hashing for tests
 PASSWORD_HASHERS = [
