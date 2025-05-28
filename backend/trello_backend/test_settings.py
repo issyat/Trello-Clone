@@ -4,8 +4,17 @@ Test settings for Trello Backend
 
 import os
 from datetime import timedelta
-from .settings import SIMPLE_JWT  # Explicit import to avoid F405
-from .settings import *  # Import all other settings
+
+# Explicit imports from settings to avoid F403/F405 errors
+from .settings import (
+    BASE_DIR, SECRET_KEY, DEBUG, ALLOWED_HOSTS, INSTALLED_APPS, MIDDLEWARE,
+    ROOT_URLCONF, TEMPLATES, WSGI_APPLICATION, AUTH_PASSWORD_VALIDATORS,
+    LANGUAGE_CODE, TIME_ZONE, USE_I18N, USE_TZ, STATIC_URL, STATICFILES_DIRS,
+    DEFAULT_AUTO_FIELD, AUTH_USER_MODEL, REST_FRAMEWORK, SIMPLE_JWT,
+    CORS_ALLOW_ALL_ORIGINS, CORS_ALLOWED_ORIGINS, CHANNEL_LAYERS, CELERY_BROKER_URL,
+    CELERY_RESULT_BACKEND, CELERY_ACCEPT_CONTENT, CELERY_TASK_SERIALIZER,
+    CELERY_RESULT_SERIALIZER, CELERY_TIMEZONE, CELERY_BEAT_SCHEDULE, LOGGING
+)
 
 # Use PostgreSQL for CI, SQLite for local testing
 if os.environ.get('CI'):
