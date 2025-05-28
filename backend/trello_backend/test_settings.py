@@ -2,13 +2,8 @@
 Test settings for Trello Backend
 """
 
-from .settings import *
-
-"""
-Test settings for Trello Backend
-"""
-
 import os
+from datetime import timedelta
 from .settings import *
 
 # Use PostgreSQL for CI, SQLite for local testing
@@ -37,7 +32,7 @@ if not os.environ.get('CI'):
     class DisableMigrations:
         def __contains__(self, item):
             return True
-        
+
         def __getitem__(self, item):
             return None
 
@@ -62,6 +57,7 @@ CACHES = {
 DEBUG = False
 
 # JWT Settings for tests
+from .settings import SIMPLE_JWT
 SIMPLE_JWT.update({
     'ACCESS_TOKEN_LIFETIME': timedelta(minutes=5),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
