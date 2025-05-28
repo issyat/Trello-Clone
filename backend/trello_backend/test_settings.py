@@ -4,7 +4,8 @@ Test settings for Trello Backend
 
 import os
 from datetime import timedelta
-from .settings import *
+from .settings import SIMPLE_JWT  # Explicit import to avoid F405
+from .settings import *  # Import all other settings
 
 # Use PostgreSQL for CI, SQLite for local testing
 if os.environ.get('CI'):
@@ -57,7 +58,6 @@ CACHES = {
 DEBUG = False
 
 # JWT Settings for tests
-from .settings import SIMPLE_JWT
 SIMPLE_JWT.update({
     'ACCESS_TOKEN_LIFETIME': timedelta(minutes=5),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
@@ -69,6 +69,10 @@ EMAIL_BACKEND = 'django.core.mail.backends.locmem.EmailBackend'
 # Static files
 STATIC_URL = '/static/'
 STATICFILES_STORAGE = 'django.contrib.staticfiles.storage.StaticFilesStorage'
+
+# Media files
+MEDIA_URL = '/media/'
+DEFAULT_FILE_STORAGE = 'django.core.files.storage.FileSystemStorage'
 
 # Media files
 MEDIA_URL = '/media/'
