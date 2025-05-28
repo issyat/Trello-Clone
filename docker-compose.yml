@@ -1,0 +1,69 @@
+services:
+  # PostgreSQL Database
+  db:
+    image: postgres:15
+    container_name: trello_db
+    environment:
+      POSTGRES_DB: trello_db
+      POSTGRES_USER: trello_user
+      POSTGRES_PASSWORD: trello_password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5432:5432"
+    networks:
+      - trello_network
+
+  # Backend API (Django/Flask)
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: trello_backend
+    environment:
+      - DEBUG=1
+      - DATABASE_URL=postgresql://trello_user:trello_password@db:5432/trello_db
+      - SECRET_KEY=your-secret-key-here
+    volumes:
+      - ./backend:/app
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
+    networks:
+      - trello_network
+
+  # Frontend (React)
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: trello_frontend
+    environment:
+      - REACT_APP_API_URL=http://localhost:8000
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    networks:
+      - trello_network
+
+  # Redis for caching and real-time features
+  redis:
+    image: redis:7-alpine
+    container_name: trello_redis
+    ports:
+      - "6379:6379"
+    networks:
+      - trello_network
+
+volumes:
+  postgres_data:
+
+networks:
+  trello_network:
+    driver: bridge
