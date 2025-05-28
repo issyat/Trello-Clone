@@ -65,7 +65,6 @@ jobs:
     - name: Install backend dependencies
       working-directory: ./backend
       run: |
-        poetry lock --no-update
         poetry install --with dev
 
     - name: Run Django checks
