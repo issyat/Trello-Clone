@@ -20,13 +20,13 @@ from .settings import MIDDLEWARE  # noqa: F401
 from .settings import REST_FRAMEWORK  # noqa: F401
 from .settings import ROOT_URLCONF  # noqa: F401
 from .settings import SECRET_KEY  # noqa: F401
-from .settings import SIMPLE_JWT
 from .settings import STATICFILES_DIRS  # noqa: F401
 from .settings import TEMPLATES  # noqa: F401
 from .settings import TIME_ZONE  # noqa: F401
 from .settings import USE_I18N  # noqa: F401
 from .settings import USE_TZ  # noqa: F401
 from .settings import WSGI_APPLICATION  # noqa: F401
+from .settings import SIMPLE_JWT
 
 # Use PostgreSQL for CI, SQLite for local testing
 if os.environ.get("CI"):
