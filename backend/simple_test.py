@@ -1,37 +1,30 @@
-import os
 import uuid
-import django
+from django.test import TestCase
 from django.contrib.auth import get_user_model
-
-# Setup Django
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'trello_backend.settings')
-django.setup()
 
 User = get_user_model()
 
 
-def test_user_creation():
+class UserCreationTest(TestCase):
     """Simple test to check if user creation works"""
-    # Use a unique email to avoid conflicts
-    unique_email = f'test_{uuid.uuid4().hex[:8]}@example.com'
 
-    user = User.objects.create_user(
-        email=unique_email,
-        password='testpass123',
-        first_name='Test',
-        last_name='User'
-    )
+    def test_user_creation(self):
+        """Test user creation functionality"""
+        # Use a unique email to avoid conflicts
+        unique_email = f'test_{uuid.uuid4().hex[:8]}@example.com'
 
-    assert user.email == unique_email
-    assert user.first_name == 'Test'
-    assert user.last_name == 'User'
-    assert user.check_password('testpass123')
-    print(f"✅ User creation test passed! Created user: {user.email}")
+        user = User.objects.create_user(
+            email=unique_email,
+            password='testpass123',
+            first_name='Test',
+            last_name='User'
+        )
 
-    # Clean up the test user
-    user.delete()
-    print("✅ Test user cleaned up!")
-
-
-if __name__ == '__main__':
-    test_user_creation()
+        self.assertEqual(user.email, unique_email)
+        self.assertEqual(user.first_name, 'Test')
+        self.assertEqual(user.last_name, 'User')
+        self.assertTrue(user.check_password('testpass123'))
+        
+        # Test that the user was saved to the database
+        saved_user = User.objects.get(email=unique_email)
+        self.assertEqual(saved_user.id, user.id)

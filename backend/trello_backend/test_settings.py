@@ -100,3 +100,25 @@ STATICFILES_STORAGE = "django.contrib.staticfiles.storage.StaticFilesStorage"
 # Media files
 MEDIA_URL = "/media/"
 DEFAULT_FILE_STORAGE = "django.core.files.storage.FileSystemStorage"
+
+# Cache configuration for tests
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+    }
+}
+
+# Celery configuration for tests
+CELERY_TASK_ALWAYS_EAGER = True
+CELERY_TASK_EAGER_PROPAGATES = True
+
+# Additional test settings
+USE_TZ = True
+TIME_ZONE = "UTC"
+
+# Security settings for tests
+SECRET_KEY = "test-secret-key-for-tests-only"
+ALLOWED_HOSTS = ["localhost", "127.0.0.1", "testserver"]
+
+# Ensure proper test database isolation
+TEST_RUNNER = "django.test.runner.DiscoverRunner"
