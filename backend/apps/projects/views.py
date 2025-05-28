@@ -105,7 +105,9 @@ class ProjectViewSet(viewsets.ModelViewSet):
         projects = Project.objects.filter(
             members=request.user
         ).exclude(owner=request.user).select_related('owner')
-        serializer = ProjectListSerializer(projects, many=True, context={'request': request})
+        serializer = ProjectListSerializer(
+            projects, many=True, context={'request': request}
+        )
         return Response(serializer.data)
 
     @action(detail=True, methods=['post'])
@@ -162,7 +164,9 @@ class ProjectViewSet(viewsets.ModelViewSet):
 
         try:
             user_to_remove = User.objects.get(id=user_id)
-            membership = ProjectMembership.objects.get(project=project, user=user_to_remove)
+            membership = ProjectMembership.objects.get(
+                project=project, user=user_to_remove
+            )
             membership.delete()
 
             return Response(
@@ -182,7 +186,9 @@ class ProjectViewSet(viewsets.ModelViewSet):
 
         try:
             target_user = User.objects.get(id=user_id)
-            membership = ProjectMembership.objects.get(project=project, user=target_user)
+            membership = ProjectMembership.objects.get(
+                project=project, user=target_user
+            )
         except (User.DoesNotExist, ProjectMembership.DoesNotExist):
             return Response(
                 {"detail": "Member not found."},
@@ -211,6 +217,8 @@ class ProjectViewSet(viewsets.ModelViewSet):
     def members(self, request, pk=None):
         """Get all members of the project"""
         project = self.get_object()
-        memberships = project.projectmembership_set.select_related('user', 'invited_by').all()
+        memberships = project.projectmembership_set.select_related(
+            'user', 'invited_by'
+        ).all()
         serializer = ProjectMemberSerializer(memberships, many=True)
         return Response(serializer.data)
