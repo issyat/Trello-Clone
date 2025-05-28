@@ -45,11 +45,10 @@ INSTALLED_APPS = [
     "corsheaders",
     "channels",
     "rest_framework_simplejwt",
-    
-    # Local apps
-    "apps.authentication",
-    "apps.projects",
-    "apps.tasks",
+      # Local apps
+    "apps.authentication.apps.AuthenticationConfig",
+    "apps.projects.apps.ProjectsConfig",
+    "apps.tasks.apps.TasksConfig",
 ]
 
 MIDDLEWARE = [
@@ -145,6 +144,9 @@ MEDIA_ROOT = BASE_DIR / "media"
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+# Custom User Model
+AUTH_USER_MODEL = 'authentication.User'
 
 # Django REST Framework
 REST_FRAMEWORK = {
