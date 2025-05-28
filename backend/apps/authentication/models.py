@@ -1,13 +1,16 @@
+import uuid
+
 from django.contrib.auth.models import AbstractUser, BaseUserManager
 from django.db import models
-import uuid
 
 
 class UserManager(BaseUserManager):
     """
     Custom user manager that uses email instead of username
     """
-    def create_user(self, email=None, password=None, username=None, **extra_fields):
+
+    def create_user(self, email=None, password=None, username=None,
+                    **extra_fields):
         """
         Create and save a regular User with the given email and password.
         Handle both email and username parameters for compatibility.
@@ -15,10 +18,10 @@ class UserManager(BaseUserManager):
         # Handle username parameter for compatibility (ignore it)
         if username and not email:
             email = username
-        
+
         if not email:
             raise ValueError('The Email field must be set')
-        
+
         # Normalize email to lowercase
         email = self.normalize_email(email).lower()
         user = self.model(email=email, **extra_fields)
@@ -26,7 +29,8 @@ class UserManager(BaseUserManager):
         user.save(using=self._db)
         return user
 
-    def create_superuser(self, email=None, password=None, username=None, **extra_fields):
+    def create_superuser(self, email=None, password=None, username=None,
+                         **extra_fields):
         """
         Create and save a SuperUser with the given email and password.
         Handle both email and username parameters for compatibility.
@@ -39,7 +43,8 @@ class UserManager(BaseUserManager):
         if extra_fields.get('is_superuser') is not True:
             raise ValueError('Superuser must have is_superuser=True.')
 
-        return self.create_user(email=email, password=password, username=username, **extra_fields)
+        return self.create_user(email=email, password=password,
+                                username=username, **extra_fields)
 
 
 class User(AbstractUser):
@@ -55,23 +60,23 @@ class User(AbstractUser):
     is_active = models.BooleanField(default=True)
     date_joined = models.DateTimeField(auto_now_add=True)
     last_login = models.DateTimeField(null=True, blank=True)
-    
+
     # Remove username field since we're using email
     username = None
-    
+
     # Use email as username
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = []
-    
+
     objects = UserManager()
-    
+
     def __str__(self):
         return self.email
-    
+
     @property
     def full_name(self):
         return f"{self.first_name} {self.last_name}".strip()
-    
+
     class Meta:
         db_table = 'users'
         verbose_name = 'User'
