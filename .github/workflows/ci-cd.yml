@@ -1,0 +1,235 @@
+name: CI/CD Pipeline
+
+on:
+  pull_request:
+    branches: [ dev ]
+  push:
+    branches: [ dev, main ]
+
+env:
+  POSTGRES_PASSWORD: postgres
+  POSTGRES_USER: postgres
+  POSTGRES_DB: trello_db_test
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_USER: postgres
+          POSTGRES_DB: trello_db_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+      
+      redis:
+        image: redis:7
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+        cache-dependency-path: frontend/package.json
+
+    - name: Install Poetry
+      uses: snok/install-poetry@v1
+      with:
+        version: latest
+        virtualenvs-create: true
+        virtualenvs-in-project: true
+
+    - name: Cache Poetry dependencies
+      uses: actions/cache@v3
+      with:
+        path: backend/.venv
+        key: venv-${{ runner.os }}-${{ hashFiles('**/poetry.lock') }}
+
+    - name: Install backend dependencies
+      working-directory: ./backend
+      run: |
+        poetry install --with dev
+
+    - name: Install frontend dependencies
+      working-directory: ./frontend
+      run: |
+        npm install
+
+    - name: Lint backend code
+      working-directory: ./backend
+      run: |
+        poetry run flake8 apps/ trello_backend/
+        poetry run black --check apps/ trello_backend/
+        poetry run isort --check-only apps/ trello_backend/
+
+    - name: Lint frontend code
+      working-directory: ./frontend
+      run: |
+        npm run lint
+
+    - name: Run backend tests
+      working-directory: ./backend
+      env:
+        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/trello_db_test
+        REDIS_URL: redis://localhost:6379/0
+        SECRET_KEY: test-secret-key-for-ci
+        DEBUG: 'false'
+        ALLOWED_HOSTS: localhost,127.0.0.1
+        DJANGO_SETTINGS_MODULE: trello_backend.test_settings
+      run: |
+        poetry run python manage.py collectstatic --noinput
+        poetry run pytest -v --cov=apps --cov-report=xml --cov-report=term-missing
+
+    - name: Build frontend
+      working-directory: ./frontend
+      run: |
+        npm run build
+
+    - name: Upload coverage reports
+      uses: codecov/codecov-action@v4
+      with:
+        file: ./backend/coverage.xml
+        flags: backend
+        name: backend-coverage
+
+  build:
+    runs-on: ubuntu-latest
+    needs: test
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Build backend Docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: ./backend
+        file: ./backend/Dockerfile
+        push: false
+        tags: trello-backend:test
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+    - name: Build frontend Docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: ./frontend
+        file: ./frontend/Dockerfile
+        push: false
+        tags: trello-frontend:test
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+    - name: Test Docker Compose
+      run: |
+        # Create a test docker-compose file with test database
+        cp docker-compose.yml docker-compose.test.yml
+        sed -i 's/trello_db/trello_db_test/g' docker-compose.test.yml
+        sed -i 's/5432:5432/5433:5432/g' docker-compose.test.yml
+        sed -i 's/5173:5173/5174:5173/g' docker-compose.test.yml
+        sed -i 's/8000:8000/8001:8000/g' docker-compose.test.yml
+        
+        # Start services
+        docker-compose -f docker-compose.test.yml up -d --build
+        
+        # Wait for services to be ready
+        sleep 30
+        
+        # Test backend health
+        curl -f http://localhost:8001/api/auth/ || exit 1
+        
+        # Test frontend is serving
+        curl -f http://localhost:5174/ || exit 1
+        
+        # Cleanup
+        docker-compose -f docker-compose.test.yml down
+
+  auto-merge:
+    runs-on: ubuntu-latest
+    needs: [test, build]
+    if: github.event_name == 'pull_request' && github.head_ref != 'dev'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Enable auto-merge
+      run: gh pr merge --auto --squash
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  create-issue-on-failure:
+    runs-on: ubuntu-latest
+    needs: [test, build]
+    if: failure() && github.event_name == 'pull_request'
+    
+    steps:
+    - name: Create issue on failure
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const issue = await github.rest.issues.create({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            title: `🚨 CI/CD Failed for PR #${{ github.event.number }}`,
+            body: `
+              ## ❌ CI/CD Pipeline Failed
+              
+              **Pull Request:** #${{ github.event.number }}
+              **Branch:** ${{ github.head_ref }}
+              **Commit:** ${{ github.sha }}
+              **Author:** @${{ github.event.pull_request.user.login }}
+              
+              ### Failed Jobs:
+              ${{ toJson(needs) }}
+              
+              ### Actions:
+              - [ ] Review the failed checks
+              - [ ] Fix the issues in the PR
+              - [ ] Re-run the pipeline
+              
+              **Workflow Run:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+              
+              ---
+              *This issue was automatically created by the CI/CD pipeline.*
+            `,
+            labels: ['bug', 'ci/cd', 'automated'],
+            assignees: ['${{ github.event.pull_request.user.login }}']
+          });
+          
+          // Add comment to PR
+          await github.rest.issues.createComment({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            issue_number: ${{ github.event.number }},
+            body: `🚨 **CI/CD Pipeline Failed**\n\nAn issue has been created to track this failure: #${issue.data.number}\n\nPlease review and fix the failing tests before this PR can be merged.`
+          });
