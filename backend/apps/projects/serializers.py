@@ -1,6 +1,6 @@
 from django.contrib.auth import get_user_model
-
 from rest_framework import serializers
+from rest_framework.validators import UniqueTogetherValidator
 
 from .models import Project, ProjectMembership
 
@@ -27,6 +27,13 @@ class ProjectMemberSerializer(serializers.ModelSerializer):
             "role",
             "invited_by_email",
             "joined_at",
+        ]
+        validators = [
+            UniqueTogetherValidator(
+                queryset=ProjectMembership.objects.all(),
+                fields=["project", "user"],
+                message="User is already a member of this project.",
+            )
         ]
 
 

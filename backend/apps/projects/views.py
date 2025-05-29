@@ -5,6 +5,7 @@ from rest_framework import exceptions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.exceptions import PermissionDenied
 
 from .models import Project, ProjectMembership
 from .serializers import (
@@ -62,10 +63,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
 
         # Check if user can view this project
         if not obj.can_view(self.request.user):
-            self.permission_denied(
-                self.request,
-                message="You don't have permission to access this project.",
-            )
+            raise PermissionDenied("You do not have permission to access this resource.")
 
         return obj
 
