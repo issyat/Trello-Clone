@@ -1,7 +1,7 @@
 from django.contrib.auth import get_user_model
 from django.db.models import Q
 
-from rest_framework import status, viewsets
+from rest_framework import exceptions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -39,24 +39,18 @@ class ProjectViewSet(viewsets.ModelViewSet):
             return AddMemberSerializer
         elif self.action == "update_member_role":
             return UpdateMemberRoleSerializer
-        elif self.action == "members":
-            return ProjectMemberSerializer
-        else:
-            return ProjectDetailSerializer
+        return ProjectDetailSerializer
 
     def get_queryset(self):
-        """Return projects that user can access"""
+        """Return projects that the user can view"""
         user = self.request.user
+        return Project.objects.filter(
+            Q(owner=user) | Q(projectmembership__user=user)
+        ).distinct()
 
-        # User can see projects they own or are members of
-        return (
-            Project.objects.filter(Q(owner=user) | Q(members=user))
-            .distinct()
-            .select_related("owner")
-            .prefetch_related(
-                "projectmembership_set__user", "projectmembership_set__invited_by"
-            )
-        )
+    def permission_denied(self, request, message=None, code=None):
+        """Override to ensure 403 Forbidden is returned instead of 404 Not Found"""
+        raise exceptions.PermissionDenied(detail=message)
 
     def perform_create(self, serializer):
         """Set the owner to current user when creating a project"""
@@ -190,20 +184,18 @@ class ProjectViewSet(viewsets.ModelViewSet):
                 {"detail": "Member not found."}, status=status.HTTP_404_NOT_FOUND
             )
 
-    @action(detail=True, methods=["patch"], url_path="members/(?P<user_id>[^/.]+)")
+    @action(detail=True, methods=["patch"], url_path="members/(?P<user_id>[^/.]+)/role")
     def update_member_role(self, request, pk=None, user_id=None):
-        """Update a member's role in the project"""
+        """Update a member's role in the project (owner/admin only)"""
         project = self.get_object()
-
         try:
             target_user = User.objects.get(id=user_id)
-            membership = ProjectMembership.objects.get(
-                project=project, user=target_user
-            )
-        except (User.DoesNotExist, ProjectMembership.DoesNotExist):
-            return Response(
-                {"detail": "Member not found."}, status=status.HTTP_404_NOT_FOUND
-            )
+        except User.DoesNotExist:
+            return Response({"detail": "User not found."}, status=404)
+
+        membership = project.projectmembership_set.filter(user=target_user).first()
+        if not membership:
+            return Response({"detail": "Membership not found."}, status=404)
 
         serializer = UpdateMemberRoleSerializer(
             data=request.data,
@@ -213,15 +205,10 @@ class ProjectViewSet(viewsets.ModelViewSet):
                 "target_user": target_user,
             },
         )
-
-        if serializer.is_valid():
-            membership.role = serializer.validated_data["role"]
-            membership.save()
-
-            member_serializer = ProjectMemberSerializer(membership)
-            return Response(member_serializer.data)
-
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        serializer.is_valid(raise_exception=True)
+        membership.role = serializer.validated_data["role"]
+        membership.save()
+        return Response({"detail": "Role updated successfully."}, status=200)
 
     @action(detail=True, methods=["get"])
     def members(self, request, pk=None):

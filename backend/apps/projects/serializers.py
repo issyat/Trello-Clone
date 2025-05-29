@@ -103,14 +103,18 @@ class ProjectDetailSerializer(serializers.ModelSerializer):
 class ProjectCreateSerializer(serializers.ModelSerializer):
     """Serializer for creating projects"""
 
+    owner_email = serializers.EmailField(source="owner.email", read_only=True)
+
     class Meta:
         model = Project
         fields = [
+            "id",
             "name",
             "description",
             "background_color",
             "background_image",
             "is_private",
+            "owner_email",
         ]
 
     def create(self, validated_data):
