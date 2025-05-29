@@ -49,23 +49,20 @@ class ProjectViewSet(viewsets.ModelViewSet):
             Q(owner=user) | Q(projectmembership__user=user)
         ).distinct()
 
-    def permission_denied(self, request, message=None, code=None):
-        """Override to ensure 403 Forbidden is returned instead of 404 Not Found"""
-        raise exceptions.PermissionDenied(detail=message)
+    def get_object(self):
+        """Get project and check permissions"""
+        obj = super().get_object()
+        # Always return 403 for unauthorized, not 404
+        if not obj.can_view(self.request.user):
+            from rest_framework.exceptions import PermissionDenied
+
+            raise PermissionDenied("You do not have permission to access this resource.")
+
+        return obj
 
     def perform_create(self, serializer):
         """Set the owner to current user when creating a project"""
         serializer.save(owner=self.request.user)
-
-    def get_object(self):
-        """Get project and check permissions"""
-        obj = super().get_object()
-
-        # Check if user can view this project
-        if not obj.can_view(self.request.user):
-            raise PermissionDenied("You do not have permission to access this resource.")
-
-        return obj
 
     def update(self, request, *args, **kwargs):
         """Update project with permission check"""
@@ -73,10 +70,9 @@ class ProjectViewSet(viewsets.ModelViewSet):
 
         # Only owner and editors can update project
         if not project.can_edit(request.user):
-            return Response(
-                {"detail": "You don't have permission to edit this project."},
-                status=status.HTTP_403_FORBIDDEN,
-            )
+            from rest_framework.exceptions import PermissionDenied
+
+            raise PermissionDenied("You don't have permission to edit this project.")
 
         return super().update(request, *args, **kwargs)
 
@@ -85,10 +81,9 @@ class ProjectViewSet(viewsets.ModelViewSet):
         project = self.get_object()
 
         if project.owner != request.user:
-            return Response(
-                {"detail": "Only project owner can delete the project."},
-                status=status.HTTP_403_FORBIDDEN,
-            )
+            from rest_framework.exceptions import PermissionDenied
+
+            raise PermissionDenied("Only project owner can delete the project.")
 
         return super().destroy(request, *args, **kwargs)
 
@@ -126,10 +121,9 @@ class ProjectViewSet(viewsets.ModelViewSet):
                 user=request.user, role=ProjectMembership.ADMIN
             ).exists()
         ):
-            return Response(
-                {"detail": "You don't have permission to add members."},
-                status=status.HTTP_403_FORBIDDEN,
-            )
+            from rest_framework.exceptions import PermissionDenied
+
+            raise PermissionDenied("You don't have permission to add members.")
 
         serializer = AddMemberSerializer(
             data=request.data, context={"request": request, "project": project}
@@ -161,10 +155,9 @@ class ProjectViewSet(viewsets.ModelViewSet):
                 user=request.user, role=ProjectMembership.ADMIN
             ).exists()
         ):
-            return Response(
-                {"detail": "You don't have permission to remove members."},
-                status=status.HTTP_403_FORBIDDEN,
-            )
+            from rest_framework.exceptions import PermissionDenied
+
+            raise PermissionDenied("You don't have permission to remove members.")
 
         try:
             user_to_remove = User.objects.get(id=user_id)
@@ -186,22 +179,23 @@ class ProjectViewSet(viewsets.ModelViewSet):
     def update_member_role(self, request, pk=None, user_id=None):
         """Update a member's role in the project (owner/admin only)"""
         project = self.get_object()
+        if not (
+            project.owner == request.user
+            or project.projectmembership_set.filter(user=request.user, role=ProjectMembership.ADMIN).exists()
+        ):
+            from rest_framework.exceptions import PermissionDenied
+
+            raise PermissionDenied("You don't have permission to update member roles.")
         try:
             target_user = User.objects.get(id=user_id)
         except User.DoesNotExist:
             return Response({"detail": "User not found."}, status=404)
-
         membership = project.projectmembership_set.filter(user=target_user).first()
         if not membership:
             return Response({"detail": "Membership not found."}, status=404)
-
         serializer = UpdateMemberRoleSerializer(
             data=request.data,
-            context={
-                "request": request,
-                "project": project,
-                "target_user": target_user,
-            },
+            context={"request": request, "project": project, "target_user": target_user},
         )
         serializer.is_valid(raise_exception=True)
         membership.role = serializer.validated_data["role"]
