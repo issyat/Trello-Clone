@@ -1,0 +1,75 @@
+name: Backend CI/CD
+
+on:
+  pull_request:
+    branches: [ dev ]
+    paths:
+      - 'backend/**'
+      - '.github/workflows/backend-ci.yml'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    services:
+      postgres:
+        image: postgres:13
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: trello_db_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+
+    - name: Cache pip dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('backend/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+
+    - name: Install dependencies
+      run: |
+        cd backend
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install -r requirements-dev.txt
+
+    - name: Run Django system checks
+      run: |
+        cd backend
+        python manage.py check --settings=trello_backend.test_settings
+
+    - name: Run migrations
+      run: |
+        cd backend
+        python manage.py migrate --settings=trello_backend.test_settings
+
+    - name: Run authentication tests
+      run: |
+        cd backend
+        python manage.py test apps.authentication --settings=trello_backend.test_settings -v 2
+
+    - name: Run projects tests
+      run: |
+        cd backend
+        python manage.py test apps.projects --settings=trello_backend.test_settings -v 2
+
+    - name: Run all backend tests
+      run: |
+        cd backend
+        python manage.py test --settings=trello_backend.test_settings -v 2
