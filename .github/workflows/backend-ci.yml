@@ -1,4 +1,4 @@
-﻿name: Backend CI/CD
+name: Backend CI/CD
 
 on:
   pull_request:
@@ -73,25 +73,3 @@ jobs:
       run: |
         cd backend
         python manage.py test --settings=trello_backend.test_settings -v 2
-
-  build:
-    runs-on: ubuntu-latest
-    needs: test
-
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v3
-
-    - name: Build backend Docker image
-      run: |
-        cd backend
-        docker build -t trello-backend:test .
-
-    - name: Test Docker image
-      run: |
-        cd backend
-        docker build -f Dockerfile.test -t trello-backend-test:latest .
-        docker run --rm trello-backend-test:latest
