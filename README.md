@@ -195,7 +195,7 @@ docker-compose exec [service-name] bash
 
 ## Services
 
-- **Frontend**: React application on port 3000
+- **Frontend**: React application on port 5173
 - **Backend**: Django REST API on port 8000
 - **Database**: PostgreSQL on port 5432
 - **Redis**: For caching and real-time features on port 6379
