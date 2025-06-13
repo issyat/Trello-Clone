@@ -1,4 +1,4 @@
-# Frontend Dockerfile for React
+# Frontend Dockerfile for Vite + React
 FROM node:18-alpine
 
 # Set working directory
@@ -7,14 +7,14 @@ WORKDIR /app
 # Copy package files first for better caching
 COPY package*.json ./
 
-# Install dependencies
-RUN npm install
+# Install dependencies with legacy peer deps
+RUN npm install --legacy-peer-deps
 
 # Copy project files
 COPY . .
 
-# Expose port
-EXPOSE 3000
+# Expose port (Vite default port is 5173)
+EXPOSE 5173
 
-# Start the development server
-CMD ["npm", "start"]
+# Start the Vite development server
+CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
