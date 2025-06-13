@@ -1,4 +1,12 @@
-# Placeholder URLs for tasks - will be implemented later
+from django.urls import path, include
+from rest_framework.routers import DefaultRouter
+from . import views
+
+router = DefaultRouter()
+router.register(r'task-lists', views.TaskListViewSet, basename='tasklist')
+router.register(r'tasks', views.TaskViewSet, basename='task')
+router.register(r'task-comments', views.TaskCommentViewSet, basename='taskcomment')
+
 urlpatterns = [
-    # Task endpoints will be added here
+    path('', include(router.urls)),
 ]
