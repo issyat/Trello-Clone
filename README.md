@@ -213,10 +213,6 @@ docker-compose exec [service-name] bash
 ### Advanced Features
 - [ ] Task search
 - [ ] Advanced filtering (user, date, status)
-- [ ] Real-time notifications
-- [ ] Drag & drop functionality
-- [ ] Dynamic updates (AJAX/WebSocket)
-- [ ] Smooth animations
 
 ## Technology Stack
 
